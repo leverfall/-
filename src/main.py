@@ -1,4 +1,4 @@
-"""CLI for Ubuntu APT dependency graphs and load ordering (stages 1–4)."""
+"""CLI for Ubuntu APT dependency graphs and load ordering (stages 1–5)."""
 
 import argparse
 import re
@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from src.apt_repository import RepositoryError
 from src.dependency_graph import bfs_graph, read_apt_graph, read_test_graph
 from src.load_order import dependency_load_order
+from src.visualization import VisualizationError, save_graph
 
 
 PACKAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
@@ -86,7 +87,7 @@ def validate_source(source, test_mode, parser):
 def build_parser():
     """Build the command-line interface."""
     parser = argparse.ArgumentParser(
-        description="Анализатор зависимостей Ubuntu APT (этап 4)"
+        description="Анализатор зависимостей Ubuntu APT (этап 5)"
     )
     parser.add_argument(
         "--package", required=True,
@@ -150,6 +151,12 @@ def main(argv=None):
             print(f"Порядок загрузки недоступен: {error}")
         else:
             print("Порядок загрузки: " + " -> ".join(loading))
+    try:
+        dot_file, svg_file, renderer = save_graph(graph, args.output)
+    except VisualizationError as error:
+        parser.exit(1, f"Ошибка визуализации: {error}\n")
+    print(f"Graphviz DOT: {dot_file}")
+    print(f"SVG: {svg_file} ({renderer})")
     unresolved = [
         item for item in unresolved
         if item.split(": ", 1)[0] in graph

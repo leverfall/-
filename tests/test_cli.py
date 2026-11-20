@@ -21,11 +21,18 @@ class ConfigurationTests(unittest.TestCase):
 
     def invoke(self, arguments):
         output = io.StringIO()
+        temporary = tempfile.TemporaryDirectory()
+        arguments = list(arguments)
+        if "--output" in arguments:
+            index = arguments.index("--output") + 1
+            if arguments[index] == "graph.svg":
+                arguments[index] = str(Path(temporary.name) / "graph.svg")
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
             try:
                 code = main(arguments)
             except SystemExit as error:
                 code = error.code
+        temporary.cleanup()
         return code, output.getvalue()
 
     def test_valid_url(self):
@@ -37,7 +44,7 @@ class ConfigurationTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("package: bash", output)
         self.assertIn("test_mode: False", output)
-        self.assertIn("output: graph.svg", output)
+        self.assertIn("output: ", output)
 
     def test_missing_package(self):
         code, _ = self.invoke(self.args[2:])
