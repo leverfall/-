@@ -1,4 +1,4 @@
-"""CLI configuration and BFS APT dependency graphs (stages 1–3)."""
+"""CLI for Ubuntu APT dependency graphs and load ordering (stages 1–4)."""
 
 import argparse
 import re
@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from src.apt_repository import RepositoryError
 from src.dependency_graph import bfs_graph, read_apt_graph, read_test_graph
+from src.load_order import dependency_load_order
 
 
 PACKAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
@@ -85,7 +86,7 @@ def validate_source(source, test_mode, parser):
 def build_parser():
     """Build the command-line interface."""
     parser = argparse.ArgumentParser(
-        description="Анализатор зависимостей Ubuntu APT (этап 3)"
+        description="Анализатор зависимостей Ubuntu APT (этап 4)"
     )
     parser.add_argument(
         "--package", required=True,
@@ -106,6 +107,10 @@ def build_parser():
     parser.add_argument(
         "--output", required=True, type=output_name,
         help="имя будущего SVG-изображения"
+    )
+    parser.add_argument(
+        "--load-order", action="store_true",
+        help="вывести порядок загрузки (зависимости перед пакетом)"
     )
     return parser
 
@@ -138,6 +143,13 @@ def main(argv=None):
     for name, dependencies in graph.items():
         print(f"  {name}: {' '.join(dependencies) or '(нет)'}")
     print("Порядок обхода BFS: " + " -> ".join(order))
+    if args.load_order:
+        try:
+            loading = dependency_load_order(graph)
+        except RepositoryError as error:
+            print(f"Порядок загрузки недоступен: {error}")
+        else:
+            print("Порядок загрузки: " + " -> ".join(loading))
     unresolved = [
         item for item in unresolved
         if item.split(": ", 1)[0] in graph
