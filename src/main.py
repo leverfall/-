@@ -11,6 +11,7 @@ from src.apt_repository import (
 
 
 PACKAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
+TEST_PACKAGE_PATTERN = re.compile(r"^[A-Za-z][A-Za-z]*$")
 VERSION_PATTERN = re.compile(r"^[0-9][A-Za-z0-9.+:~\-]*$")
 
 
@@ -22,6 +23,21 @@ def package_name(value):
             "и содержать только a-z, 0-9, +, . или -"
         )
     return value
+
+
+def validate_package(value, test_mode, parser):
+    """Allow uppercase letters in test mode, Debian names otherwise."""
+    if test_mode:
+        if not TEST_PACKAGE_PATTERN.fullmatch(value):
+            parser.error(
+                "в тестовом режиме имя пакета должно состоять "
+                "из латинских букв"
+            )
+    else:
+        try:
+            package_name(value)
+        except argparse.ArgumentTypeError as error:
+            parser.error(str(error))
 
 
 def package_version(value):
@@ -73,7 +89,7 @@ def build_parser():
         description="Анализатор зависимостей Ubuntu APT (этап 2)"
     )
     parser.add_argument(
-        "--package", required=True, type=package_name,
+        "--package", required=True,
         help="имя пакета, например bash"
     )
     parser.add_argument(
@@ -99,6 +115,7 @@ def main(argv=None):
     """Validate CLI input and display direct package dependencies."""
     parser = build_parser()
     args = parser.parse_args(argv)
+    validate_package(args.package, args.test_mode, parser)
     validate_source(args.source, args.test_mode, parser)
     print(f"package: {args.package}")
     print(f"source: {args.source}")
