@@ -1,0 +1,5 @@
+# Cycle A -> B -> C -> A and a self-loop
+A: B D
+B: C
+C: A
+D: D

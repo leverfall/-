@@ -1,13 +1,12 @@
-"""CLI configuration and direct APT dependencies (stages 1–2)."""
+"""CLI configuration and BFS APT dependency graphs (stages 1–3)."""
 
 import argparse
 import re
 from pathlib import Path
 from urllib.parse import urlparse
 
-from src.apt_repository import (
-    RepositoryError, get_direct_dependencies, get_test_dependencies
-)
+from src.apt_repository import RepositoryError
+from src.dependency_graph import bfs_graph, read_apt_graph, read_test_graph
 
 
 PACKAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
@@ -86,7 +85,7 @@ def validate_source(source, test_mode, parser):
 def build_parser():
     """Build the command-line interface."""
     parser = argparse.ArgumentParser(
-        description="Анализатор зависимостей Ubuntu APT (этап 2)"
+        description="Анализатор зависимостей Ubuntu APT (этап 3)"
     )
     parser.add_argument(
         "--package", required=True,
@@ -124,18 +123,31 @@ def main(argv=None):
     print(f"output: {args.output}")
     try:
         if args.test_mode:
-            dependencies = get_test_dependencies(args.source, args.package)
+            repository = read_test_graph(args.source)
+            package = args.package.upper()
+            unresolved = []
         else:
-            dependencies = get_direct_dependencies(
-                args.source, args.package, args.version
+            package = args.package
+            repository, unresolved = read_apt_graph(
+                args.source, package, args.version
             )
+        graph, order = bfs_graph(repository, package)
     except RepositoryError as error:
         parser.exit(1, f"Ошибка: {error}\n")
-    print("\nПрямые зависимости:")
-    if not dependencies:
-        print("  (отсутствуют)")
-    for dependency in dependencies:
-        print(f"  - {dependency}")
+    print("\nГраф зависимостей (BFS):")
+    for name, dependencies in graph.items():
+        print(f"  {name}: {' '.join(dependencies) or '(нет)'}")
+    print("Порядок обхода BFS: " + " -> ".join(order))
+    unresolved = [
+        item for item in unresolved
+        if item.split(": ", 1)[0] in graph
+    ]
+    if unresolved:
+        print("\nПримечание: часть зависимостей не найдена в индексе:")
+        for item in unresolved[:10]:
+            print(f"  - {item}")
+        if len(unresolved) > 10:
+            print(f"  ... и ещё {len(unresolved) - 10}")
     return 0
 
 

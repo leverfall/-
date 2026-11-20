@@ -30,7 +30,8 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_valid_url(self):
         with patch(
-            "src.main.get_direct_dependencies", return_value=["libc6 (>= 2.34)"]
+            "src.main.read_apt_graph",
+            return_value=({"bash": ["libc6"], "libc6": []}, [])
         ):
             code, output = self.invoke(self.args)
         self.assertEqual(code, 0)
@@ -76,7 +77,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_valid_test_mode(self):
         with tempfile.TemporaryDirectory() as folder:
             file = Path(folder) / "repo.txt"
-            file.write_text("A: B C\n", encoding="utf-8")
+            file.write_text("A: B C\nB:\nC:\n", encoding="utf-8")
             args = self.args.copy()
             args[3] = str(file)
             args[1] = "a"
@@ -84,7 +85,7 @@ class ConfigurationTests(unittest.TestCase):
             code, output = self.invoke(args)
             self.assertEqual(code, 0)
             self.assertIn("test_mode: True", output)
-            self.assertIn("  - B", output)
+            self.assertIn("A: B C", output)
 
     def test_test_mode_requires_file(self):
         args = self.args + ["--test-mode"]
