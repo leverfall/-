@@ -1,9 +1,13 @@
-"""Stage 1: command-line configuration for an APT dependency analyzer."""
+"""CLI configuration and direct APT dependencies (stages 1–2)."""
 
 import argparse
 import re
 from pathlib import Path
 from urllib.parse import urlparse
+
+from src.apt_repository import (
+    RepositoryError, get_direct_dependencies, get_test_dependencies
+)
 
 
 PACKAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
@@ -66,7 +70,7 @@ def validate_source(source, test_mode, parser):
 def build_parser():
     """Build the command-line interface."""
     parser = argparse.ArgumentParser(
-        description="Анализатор графа зависимостей Ubuntu APT (этап 1)"
+        description="Анализатор зависимостей Ubuntu APT (этап 2)"
     )
     parser.add_argument(
         "--package", required=True, type=package_name,
@@ -92,7 +96,7 @@ def build_parser():
 
 
 def main(argv=None):
-    """Parse and display configuration; dependency logic comes later."""
+    """Validate CLI input and display direct package dependencies."""
     parser = build_parser()
     args = parser.parse_args(argv)
     validate_source(args.source, args.test_mode, parser)
@@ -101,6 +105,20 @@ def main(argv=None):
     print(f"test_mode: {args.test_mode}")
     print(f"version: {args.version}")
     print(f"output: {args.output}")
+    try:
+        if args.test_mode:
+            dependencies = get_test_dependencies(args.source, args.package)
+        else:
+            dependencies = get_direct_dependencies(
+                args.source, args.package, args.version
+            )
+    except RepositoryError as error:
+        parser.exit(1, f"Ошибка: {error}\n")
+    print("\nПрямые зависимости:")
+    if not dependencies:
+        print("  (отсутствуют)")
+    for dependency in dependencies:
+        print(f"  - {dependency}")
     return 0
 
 

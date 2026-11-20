@@ -29,7 +29,10 @@ class ConfigurationTests(unittest.TestCase):
         return code, output.getvalue()
 
     def test_valid_url(self):
-        code, output = self.invoke(self.args)
+        with patch(
+            "src.main.get_direct_dependencies", return_value=["libc6 (>= 2.34)"]
+        ):
+            code, output = self.invoke(self.args)
         self.assertEqual(code, 0)
         self.assertIn("package: bash", output)
         self.assertIn("test_mode: False", output)
@@ -81,6 +84,7 @@ class ConfigurationTests(unittest.TestCase):
             code, output = self.invoke(args)
             self.assertEqual(code, 0)
             self.assertIn("test_mode: True", output)
+            self.assertIn("  - B", output)
 
     def test_test_mode_requires_file(self):
         args = self.args + ["--test-mode"]

@@ -1,75 +1,73 @@
 # Визуализация графа зависимостей Ubuntu APT — вариант 16
 
-## Описание
-
-CLI-инструмент для анализа графа зависимостей пакетов Ubuntu APT.
-Сейчас реализован **этап 1**: приём, проверка и вывод конфигурации.
-Получение зависимостей и генерация SVG будут добавлены на следующих этапах.
+Консольный анализатор прямых зависимостей пакетов Ubuntu в точной версии.
+Реализованы **этапы 1–2** учебного задания. Граф, порядок загрузки и SVG
+будут добавлены в этапах 3–5.
 
 ## Требования
 
-Python 3.9+; внешние Python-библиотеки для этапа 1 не требуются.
+Python 3.9+; внешние зависимости и утилита `apt` не нужны.
+Для реального репозитория необходим доступ к интернету.
 
-## Опции
+## Аргументы
 
-| Опция | Значение |
+| Аргумент | Назначение |
 |---|---|
 | `--package` | Имя пакета, например `bash` |
-| `--source` | URL репозитория или путь к тестовому файлу |
-| `--test-mode` | Переключатель тестового режима (по умолчанию выключен) |
-| `--version` | Версия анализируемого пакета |
-| `--output` | Имя SVG-файла, который будет создан на этапе 5 |
+| `--source` | URL индекса `Packages.xz`, `Packages.gz`, `Packages` или корня репозитория; в тестовом режиме — путь к файлу |
+| `--test-mode` | Использовать локальное тестовое описание вместо интернета |
+| `--version` | Точная версия пакета в индексе |
+| `--output` | Имя SVG-файла для будущего этапа 5 (пока файл не создаётся) |
 
-Все опции, кроме переключателя `--test-mode`, обязательны. При ошибках
-программа печатает объяснение и завершает работу с ненулевым кодом.
+Все параметры, кроме `--test-mode`, обязательны. В тестовом режиме версия
+принимается, но не используется: формат тестового файла не содержит версий.
 
-## Запуск
-
-В командной строке Windows из папки проекта:
-
-```bat
-run.bat --package bash --source https://archive.ubuntu.com/ubuntu --version 5.2.21-2ubuntu4 --output graph.svg
-```
-
-Linux/macOS:
-
-```sh
-sh run.sh --package bash --source https://archive.ubuntu.com/ubuntu --version 5.2.21-2ubuntu4 --output graph.svg
-```
-
-Тестовый режим (имя пакета на данном этапе проверяется по правилам
-Ubuntu; формат графа будет реализован на этапе 3):
+## Пример работы без интернета
 
 ```bat
 run.bat --package a --source tests/example_repo.txt --test-mode --version 1.0 --output graph.svg
 ```
 
-## Запуск тестов
+Ожидается вывод конфигурации и зависимостей `B`, `C`.
+
+## Пример работы с реальным APT-репозиторием
+
+Укажите **реальную версию**, присутствующую в выбранном индексе Ubuntu.
+Например, в Windows CMD (в одну строку):
+
+```bat
+run.bat --package bash --source https://archive.ubuntu.com/ubuntu/dists/noble/main/binary-amd64/Packages.xz --version ВЕРСИЯ_ИЗ_ИНДЕКСА --output graph.svg
+```
+
+`ВЕРСИЯ_ИЗ_ИНДЕКСА` — место для подстановки, **не настоящая версия**.
+В качестве `--source` также можно указать корень
+`https://archive.ubuntu.com/ubuntu`, тогда по умолчанию используется
+`dists/noble/main/binary-amd64/Packages.xz` (Ubuntu 24.04 LTS, компонент
+`main`, архитектура `amd64`). Для другого релиза/компонента/архитектуры
+передайте полный URL нужного файла `Packages.xz` или `Packages.gz`.
+
+Выводятся **Pre-Depends и Depends** (как прямые зависимости), с сохранением
+альтернатив `A | B`, условий версий и архитектурных уточнений. Установка,
+разрешение альтернатив и транзитивный обход на этапе 2 не выполняются.
+Версия сравнивается точно, без подбора подходящей версии.
+
+Если индекс недоступен или указанная версия не обнаружена, программа
+выводит сообщение об ошибке. Для получения зависимостей применяются только
+стандартные библиотеки Python (`urllib`, `gzip`, `lzma`), не `apt`.
+
+## Запуск и тесты
+
+Windows: `run.bat ...` или `python -m src.main ...`.
+Linux/macOS: `sh run.sh ...`.
 
 ```bat
 python -m unittest discover -s tests -v
 ```
 
-## Пример вывода
+## Git-коммиты по этапам
 
-```text
-package: bash
-source: https://archive.ubuntu.com/ubuntu
-test_mode: False
-version: 5.2.21-2ubuntu4
-output: graph.svg
-```
-
-## Ограничения текущего этапа
-
-URL проверяется по форме, но соединение с сетью не выполняется. Версия
-проверяется синтаксически; наличие версии в репозитории не проверяется.
-Изображение на этом этапе не создаётся.
-
-## План коммитов
-
-1. `feat(cli): add configuration parsing and validation` — этап 1.
-2. `feat(apt): load direct package dependencies` — этап 2.
-3. `feat(graph): build dependency graph using BFS` — этап 3.
-4. `feat(order): calculate dependency loading order` — этап 4.
-5. `feat(graphviz): export dependency graph to SVG` — этап 5.
+1. `feat(cli): add configuration parsing and validation`
+2. `feat(apt): load direct package dependencies`
+3. `feat(graph): build dependency graph using BFS`
+4. `feat(order): calculate dependency loading order`
+5. `feat(graphviz): export dependency graph to SVG`
