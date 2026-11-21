@@ -49,7 +49,9 @@ def fetch_index(source):
         with reader:
             raw = reader.read(MAX_INDEX_BYTES + 1)
     except (lzma.LZMAError, EOFError, OSError) as error:
-        raise RepositoryError(f"повреждённый индекс пакетов: {error}") from error
+        raise RepositoryError(
+            f"повреждённый индекс пакетов: {error}"
+        ) from error
     if len(raw) > MAX_INDEX_BYTES:
         raise RepositoryError("распакованный индекс слишком большой")
     try:
@@ -131,7 +133,9 @@ def get_test_dependencies(path, package):
         if not line or line.startswith("#"):
             continue
         if ":" not in line:
-            raise RepositoryError("строка тестового графа должна иметь вид A: B C")
+            raise RepositoryError(
+                "строка тестового графа должна иметь вид A: B C"
+            )
         name, rest = line.split(":", 1)
         if name.strip().lower() == package.lower():
             return rest.split()

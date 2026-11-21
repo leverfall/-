@@ -40,7 +40,10 @@ class AptRepositoryTests(unittest.TestCase):
         )
 
     def test_url_explicit(self):
-        url = "https://example.org/dists/jammy/universe/binary-amd64/Packages.gz"
+        url = (
+            "https://example.org/dists/jammy/universe/"
+            "binary-amd64/Packages.gz"
+        )
         self.assertEqual(index_url(url), url)
 
     def test_records(self):
@@ -90,7 +93,9 @@ class AptRepositoryTests(unittest.TestCase):
             pass
 
         url = "https://example.org/dists/noble/main/binary-amd64/" + suffix
-        with patch("src.apt_repository.urlopen", return_value=Response(payload)):
+        with patch(
+            "src.apt_repository.urlopen", return_value=Response(payload)
+        ):
             return fetch_index(url)
 
 

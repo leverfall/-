@@ -15,7 +15,8 @@ class ConfigurationTests(unittest.TestCase):
 
     def setUp(self):
         self.args = [
-            "--package", "bash", "--source", "https://archive.ubuntu.com/ubuntu",
+            "--package", "bash", "--source",
+            "https://archive.ubuntu.com/ubuntu",
             "--version", "5.2.21-2ubuntu4", "--output", "graph.svg"
         ]
 
@@ -27,7 +28,10 @@ class ConfigurationTests(unittest.TestCase):
             index = arguments.index("--output") + 1
             if arguments[index] == "graph.svg":
                 arguments[index] = str(Path(temporary.name) / "graph.svg")
-        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+        with (
+            contextlib.redirect_stdout(output),
+            contextlib.redirect_stderr(output),
+        ):
             try:
                 code = main(arguments)
             except SystemExit as error:

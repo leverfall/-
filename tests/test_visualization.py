@@ -2,7 +2,7 @@
 
 import tempfile
 import unittest
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as xml_tree
 from pathlib import Path
 from unittest.mock import patch
 
@@ -36,7 +36,7 @@ class VisualizationTests(unittest.TestCase):
             _, result, _ = save_graph(self.graph, svg)
             self.assertTrue(result.is_file())
             self.assertTrue(svg.with_suffix('.dot').is_file())
-            self.assertTrue(ET.parse(svg).getroot().tag.endswith('svg'))
+            self.assertTrue(xml_tree.parse(svg).getroot().tag.endswith('svg'))
 
     def test_fallback_without_dot(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -44,7 +44,7 @@ class VisualizationTests(unittest.TestCase):
             with patch('src.visualization.shutil.which', return_value=None):
                 _, _, method = save_graph(self.graph, svg)
             self.assertIn('встроенный', method)
-            self.assertTrue(ET.parse(svg).getroot().tag.endswith('svg'))
+            self.assertTrue(xml_tree.parse(svg).getroot().tag.endswith('svg'))
             self.assertIn('>A</text>', svg.read_text(encoding='utf-8'))
 
     def test_fallback_for_cycle(self):
@@ -52,13 +52,18 @@ class VisualizationTests(unittest.TestCase):
             svg = Path(folder) / 'cycle.svg'
             with patch('src.visualization.shutil.which', return_value=None):
                 save_graph({'A': ['B'], 'B': ['A']}, svg)
-            ET.parse(svg)
+            xml_tree.parse(svg)
 
     def test_three_packages(self):
         with tempfile.TemporaryDirectory() as folder:
             for name in ('A', 'B', 'C'):
-                with patch('src.visualization.shutil.which', return_value=None):
-                    save_graph({name: self.graph[name]}, Path(folder) / f'{name}.svg')
+                with patch(
+                    'src.visualization.shutil.which', return_value=None
+                ):
+                    save_graph(
+                        {name: self.graph[name]},
+                        Path(folder) / f'{name}.svg',
+                    )
                 self.assertTrue((Path(folder) / f'{name}.svg').exists())
 
     def test_missing_directory(self):

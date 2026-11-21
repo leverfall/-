@@ -14,6 +14,7 @@ from src.visualization import VisualizationError, save_graph
 PACKAGE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9+.-]*$")
 TEST_PACKAGE_PATTERN = re.compile(r"^[A-Za-z][A-Za-z]*$")
 VERSION_PATTERN = re.compile(r"^[0-9][A-Za-z0-9.+:~\-]*$")
+MAX_UNRESOLVED_DETAILS = 10
 
 
 def package_name(value):
@@ -116,8 +117,51 @@ def build_parser():
     return parser
 
 
+def _load_repository(args):
+    """Choose the test graph or an Ubuntu APT index graph."""
+    if args.test_mode:
+        return read_test_graph(args.source), args.package.upper(), []
+    graph, missing = read_apt_graph(
+        args.source, args.package, args.version
+    )
+    return graph, args.package, missing
+
+
+def _show_bfs(graph, order):
+    """Print reachable dependencies and BFS traversal order."""
+    print("\nГраф зависимостей (BFS):")
+    for name, dependencies in graph.items():
+        print(f"  {name}: {' '.join(dependencies) or '(нет)'}")
+    print("Порядок обхода BFS: " + " -> ".join(order))
+
+
+def _show_load_order(graph):
+    """Print dependency-first ordering or describe a cycle."""
+    try:
+        loading = dependency_load_order(graph)
+    except RepositoryError as error:
+        print(f"Порядок загрузки недоступен: {error}")
+    else:
+        print("Порядок загрузки: " + " -> ".join(loading))
+
+
+def _show_unresolved(unresolved, graph):
+    """Show missing index dependency groups for reachable packages."""
+    visible = [
+        item for item in unresolved
+        if item.split(": ", 1)[0] in graph
+    ]
+    if not visible:
+        return
+    print("\nПримечание: часть зависимостей не найдена в индексе:")
+    for item in visible[:MAX_UNRESOLVED_DETAILS]:
+        print(f"  - {item}")
+    if len(visible) > MAX_UNRESOLVED_DETAILS:
+        print(f"  ... и ещё {len(visible) - MAX_UNRESOLVED_DETAILS}")
+
+
 def main(argv=None):
-    """Validate CLI input and display direct package dependencies."""
+    """Validate CLI input, analyze dependencies and save the graph."""
     parser = build_parser()
     args = parser.parse_args(argv)
     validate_package(args.package, args.test_mode, parser)
@@ -128,45 +172,20 @@ def main(argv=None):
     print(f"version: {args.version}")
     print(f"output: {args.output}")
     try:
-        if args.test_mode:
-            repository = read_test_graph(args.source)
-            package = args.package.upper()
-            unresolved = []
-        else:
-            package = args.package
-            repository, unresolved = read_apt_graph(
-                args.source, package, args.version
-            )
+        repository, package, unresolved = _load_repository(args)
         graph, order = bfs_graph(repository, package)
     except RepositoryError as error:
         parser.exit(1, f"Ошибка: {error}\n")
-    print("\nГраф зависимостей (BFS):")
-    for name, dependencies in graph.items():
-        print(f"  {name}: {' '.join(dependencies) or '(нет)'}")
-    print("Порядок обхода BFS: " + " -> ".join(order))
+    _show_bfs(graph, order)
     if args.load_order:
-        try:
-            loading = dependency_load_order(graph)
-        except RepositoryError as error:
-            print(f"Порядок загрузки недоступен: {error}")
-        else:
-            print("Порядок загрузки: " + " -> ".join(loading))
+        _show_load_order(graph)
     try:
         dot_file, svg_file, renderer = save_graph(graph, args.output)
     except VisualizationError as error:
         parser.exit(1, f"Ошибка визуализации: {error}\n")
     print(f"Graphviz DOT: {dot_file}")
     print(f"SVG: {svg_file} ({renderer})")
-    unresolved = [
-        item for item in unresolved
-        if item.split(": ", 1)[0] in graph
-    ]
-    if unresolved:
-        print("\nПримечание: часть зависимостей не найдена в индексе:")
-        for item in unresolved[:10]:
-            print(f"  - {item}")
-        if len(unresolved) > 10:
-            print(f"  ... и ещё {len(unresolved) - 10}")
+    _show_unresolved(unresolved, graph)
     return 0
 
 
